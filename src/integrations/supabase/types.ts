@@ -14,7 +14,289 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          display_name: string
+          executable_path: string
+          icon_url: string | null
+          id: string
+          is_system_app: boolean | null
+          metadata: Json | null
+          name: string
+          permissions: Json | null
+          size: number | null
+          version: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          executable_path: string
+          icon_url?: string | null
+          id?: string
+          is_system_app?: boolean | null
+          metadata?: Json | null
+          name: string
+          permissions?: Json | null
+          size?: number | null
+          version: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          executable_path?: string
+          icon_url?: string | null
+          id?: string
+          is_system_app?: boolean | null
+          metadata?: Json | null
+          name?: string
+          permissions?: Json | null
+          size?: number | null
+          version?: string
+        }
+        Relationships: []
+      }
+      filesystem: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          mime_type: string | null
+          name: string
+          parent_id: string | null
+          path: string
+          permissions: Json | null
+          size: number | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          mime_type?: string | null
+          name: string
+          parent_id?: string | null
+          path: string
+          permissions?: Json | null
+          size?: number | null
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          mime_type?: string | null
+          name?: string
+          parent_id?: string | null
+          path?: string
+          permissions?: Json | null
+          size?: number | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "filesystem_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "filesystem"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processes: {
+        Row: {
+          command: string
+          cpu_usage: number | null
+          id: string
+          memory_usage: number | null
+          metadata: Json | null
+          name: string
+          parent_pid: number | null
+          pid: number
+          priority: number | null
+          started_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          command: string
+          cpu_usage?: number | null
+          id?: string
+          memory_usage?: number | null
+          metadata?: Json | null
+          name: string
+          parent_pid?: number | null
+          pid: number
+          priority?: number | null
+          started_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          command?: string
+          cpu_usage?: number | null
+          id?: string
+          memory_usage?: number | null
+          metadata?: Json | null
+          name?: string
+          parent_pid?: number | null
+          pid?: number
+          priority?: number | null
+          started_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          last_login: string | null
+          preferences: Json | null
+          security_clearance: string | null
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_login?: string | null
+          preferences?: Json | null
+          security_clearance?: string | null
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_login?: string | null
+          preferences?: Json | null
+          security_clearance?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      system_logs: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          level: string
+          message: string
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          level: string
+          message: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          level?: string
+          message?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      terminal_sessions: {
+        Row: {
+          created_at: string
+          current_directory: string | null
+          environment_vars: Json | null
+          history: Json | null
+          id: string
+          session_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_directory?: string | null
+          environment_vars?: Json | null
+          history?: Json | null
+          id?: string
+          session_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_directory?: string | null
+          environment_vars?: Json | null
+          history?: Json | null
+          id?: string
+          session_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_applications: {
+        Row: {
+          application_id: string
+          id: string
+          installed_at: string
+          settings: Json | null
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          id?: string
+          installed_at?: string
+          settings?: Json | null
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          id?: string
+          installed_at?: string
+          settings?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_applications_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
