@@ -62,5 +62,6 @@ void kmain(void) {
     switch_page_directory(browser_dir);
     enter_user_mode(entry_point);
     
+    // This loop should now be unreachable
     while(1) { compositor_redraw(); }
 }

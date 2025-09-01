@@ -7,6 +7,8 @@ public:
 
     // Renders an HTML string to the window's buffer
     virtual void renderHTML(const char* html) = 0;
+
+    // A real renderer would have many more methods for handling CSS, JS, etc.
 };
 
 #endif
