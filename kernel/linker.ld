@@ -1,38 +1,41 @@
 /*
- * LimitlessOS PolyCore Kernel Linker Script
+ * LimitlessOS PolyCore Kernel Linker Script for x86_64
  */
 
-ENTRY(start) /* The entry point is the 'start' label in boot.asm */
+ENTRY(start)
 
 SECTIONS
 {
-    /* Begin putting sections at 1 MiB, a common base for modern kernels. */
+    /* Start at 1MB, the physical address where the bootloader will load us. */
     . = 1M;
-
-    .text :
+    
+    .text : AT(ADDR(.text))
     {
-        *(.multiboot)   /* Place the multiboot header first. */
-        *(.text)        /* All compiled code (.text sections) goes here. */
+        *(.multiboot)
+        *(.text) /* This will contain the 32-bit start code */
+    }
+    
+    /* This section contains the 64-bit kernel code */
+    .text.kmain64 : AT(ADDR(.text.kmain64))
+    {
+        *(.text.kmain64)
     }
 
-    .rodata :
+    /* Higher-half kernel virtual address space starts here. */
+    . = 0xFFFFFFFF80000000;
+    
+    .rodata : ALIGN(4K)
     {
-        *(.rodata)      /* All read-only data. */
+        *(.rodata)
     }
 
-    .data :
+    .data : ALIGN(4K)
     {
-        *(.data)        /* All initialized data. */
+        *(.data)
     }
 
-    .bss :
+    .bss : ALIGN(4K)
     {
-        *(.bss)         /* All uninitialized data. */
-    }
-
-    /DISCARD/ :
-    {
-        *(.comment)
-        *(.eh_frame)
+        *(.bss)
     }
 }

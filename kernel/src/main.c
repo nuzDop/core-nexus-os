@@ -18,6 +18,7 @@
 #include "ai/nexus_core.h"
 #include "net/net.h"
 #include "net/sockets.h"
+#include "boot/multiboot.h"
 
 void keyboard_handler_c();
 void interrupt_handler_c(registers_t regs);
@@ -25,10 +26,13 @@ window_t* create_window(int x, int y, int w, int h, char* title);
 extern uint8_t _binary_user_browser_elf_start[];
 extern uint8_t _binary_user_browser_elf_end[];
 
-void kmain(void) {
+void kmain(multiboot_info_t* mbd, uint32_t magic) {
     init_gdt();
     init_idt();
-    pmm_init(128 * 1024 * 1024);
+    
+    // Pass the real memory map to the PMM
+    pmm_init(mbd);
+    
     vmm_init();
     init_syscalls();
     init_vfs();
@@ -46,22 +50,18 @@ void kmain(void) {
     sockets_init();
     rtl8139_init();
     
-    // Create a file for the browser executable
     fs_node_t* browser_file = fs_root->create(fs_root, "browser.elf", FS_FILE);
     uint32_t browser_size = _binary_user_browser_elf_end - _binary_user_browser_elf_start;
     browser_file->write(browser_file, 0, browser_size, _binary_user_browser_elf_start);
 
-    // Create a memory space for the browser process
     page_directory_t* browser_dir = clone_directory(kernel_directory);
     uint32_t entry_point = elf_load("browser.elf", browser_dir);
 
     if (!entry_point) { while(1); }
     
-    // Start the browser
     __asm__ __volatile__ ("sti");
     switch_page_directory(browser_dir);
     enter_user_mode(entry_point);
     
-    // This loop should now be unreachable
     while(1) { compositor_redraw(); }
 }
