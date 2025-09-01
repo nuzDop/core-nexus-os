@@ -10,7 +10,7 @@ import {
   Monitor, 
   Lock, 
   Zap,
-  Terminal,
+  Terminal as TerminalIcon,
   FolderOpen,
   Network,
   Settings,
@@ -65,11 +65,11 @@ export const Desktop: React.FC<DesktopProps> = ({ className }) => {
     { id: 'security', title: 'Security Center', icon: Shield, component: SecurityCenter },
     { id: 'compatibility', title: 'Multi-ABI Compatibility', icon: Monitor, component: CompatibilityLayer },
     { id: 'filemanager', title: 'File Manager', icon: FolderOpen, component: FileManager },
-    { id: 'terminal', title: 'Terminal', icon: Terminal, component: Terminal }
+    { id: 'terminal', title: 'Terminal', icon: TerminalIcon, component: Terminal }
   ];
 
   const quickActions = [
-    { name: 'Terminal', icon: Terminal, status: 'ready' },
+    { name: 'Terminal', icon: TerminalIcon, status: 'ready' },
     { name: 'File System', icon: FolderOpen, status: 'active' },
     { name: 'Network', icon: Network, status: 'secure' },
     { name: 'Settings', icon: Settings, status: 'ready' }
