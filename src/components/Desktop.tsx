@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,20 +13,26 @@ import {
   Terminal,
   FolderOpen,
   Network,
-  Settings
+  Settings,
+  LogOut,
+  User
 } from 'lucide-react';
 import heroImage from '@/assets/limitless-os-hero.jpg';
+import { useAuth } from '@/hooks/useAuth';
 
 import { PolyCoreKernel } from './PolyCoreKernel';
 import { InfinityFS } from './InfinityFS';
 import { SecurityCenter } from './SecurityCenter';
 import { CompatibilityLayer } from './CompatibilityLayer';
+import { Terminal } from './Terminal';
+import { FileManager } from './FileManager';
 
 interface DesktopProps {
   className?: string;
 }
 
 export const Desktop: React.FC<DesktopProps> = ({ className }) => {
+  const { user, profile, signOut, loading } = useAuth();
   const [activeWindow, setActiveWindow] = useState<string | null>(null);
   const [systemStatus] = useState({
     security: 'SECURE',
@@ -35,11 +42,30 @@ export const Desktop: React.FC<DesktopProps> = ({ className }) => {
     compatibility: 'Windows | Linux | macOS'
   });
 
+  // Redirect to auth if not logged in
+  if (!user && !loading) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Show loading screen while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Shield className="w-12 h-12 text-primary mx-auto animate-pulse" />
+          <p className="text-muted-foreground">Loading LimitlessOS...</p>
+        </div>
+      </div>
+    );
+  }
+
   const windows = [
     { id: 'polycore', title: 'PolyCore Kernel', icon: Cpu, component: PolyCoreKernel },
     { id: 'infinityfs', title: 'InfinityFS Manager', icon: HardDrive, component: InfinityFS },
     { id: 'security', title: 'Security Center', icon: Shield, component: SecurityCenter },
-    { id: 'compatibility', title: 'Multi-ABI Compatibility', icon: Monitor, component: CompatibilityLayer }
+    { id: 'compatibility', title: 'Multi-ABI Compatibility', icon: Monitor, component: CompatibilityLayer },
+    { id: 'filemanager', title: 'File Manager', icon: FolderOpen, component: FileManager },
+    { id: 'terminal', title: 'Terminal', icon: Terminal, component: Terminal }
   ];
 
   const quickActions = [
@@ -77,19 +103,39 @@ export const Desktop: React.FC<DesktopProps> = ({ className }) => {
             </Badge>
           </div>
           
-          <div className="flex items-center space-x-6 text-sm font-mono">
-            <div className="text-muted-foreground">
-              Kernel: <span className="text-primary">{systemStatus.kernel}</span>
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-4 text-sm font-mono">
+              <div className="text-muted-foreground">
+                User: <span className="text-primary">{profile?.username || user?.email}</span>
+              </div>
+              <div className="text-muted-foreground">
+                Clearance: <span className="text-secure">{profile?.security_clearance?.toUpperCase() || 'USER'}</span>
+              </div>
+              <div className="text-muted-foreground">
+                Kernel: <span className="text-primary">{systemStatus.kernel}</span>
+              </div>
+              <div className="text-muted-foreground">
+                FS: <span className="text-accent">{systemStatus.filesystem}</span>
+              </div>
+              <div className="text-muted-foreground">
+                Uptime: <span className="text-secure">{systemStatus.uptime}</span>
+              </div>
             </div>
-            <div className="text-muted-foreground">
-              FS: <span className="text-accent">{systemStatus.filesystem}</span>
+            
+            <div className="flex items-center space-x-2">
+              <Badge variant="outline" className="animate-pulse-glow">
+                {systemStatus.compatibility}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="w-4 h-4 mr-1" />
+                Sign Out
+              </Button>
             </div>
-            <div className="text-muted-foreground">
-              Uptime: <span className="text-secure">{systemStatus.uptime}</span>
-            </div>
-            <Badge variant="outline" className="animate-pulse-glow">
-              {systemStatus.compatibility}
-            </Badge>
           </div>
         </div>
       </div>
@@ -135,12 +181,19 @@ export const Desktop: React.FC<DesktopProps> = ({ className }) => {
                 {window.id === 'infinityfs' && 'Next-generation copy-on-write filesystem with encryption'}
                 {window.id === 'security' && 'Comprehensive security framework and threat monitoring'}
                 {window.id === 'compatibility' && 'Native multi-ABI execution environment'}
+                {window.id === 'filemanager' && 'Full-featured file system browser and manager'}
+                {window.id === 'terminal' && 'LimitlessOS command-line interface with real commands'}
               </p>
               <Button variant="military" className="w-full">
                 Open Module
               </Button>
             </Card>
           ))}
+        </div>
+        
+        {/* Main desktop with floating terminal */}
+        <div className="relative">
+          <Terminal />
         </div>
       </div>
 
