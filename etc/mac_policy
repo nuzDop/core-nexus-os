@@ -1,0 +1,18 @@
+#
+# LimitlessOS Security Policy
+# Format: allow <source_context> <target_context> <class> <permission>
+#
+
+# Define types (a real policy would have a separate declaration)
+type kernel_t
+type user_t
+type bin_t
+type home_dir_t
+
+# Rules
+allow user_t bin_t file execute
+allow user_t home_dir_t file { read write create }
+allow user_t home_dir_t dir { list search }
+
+# Deny user writing to executables
+deny user_t bin_t file write

@@ -5,23 +5,33 @@
 #include "../proc/task.h"
 #include "../fs/vfs.h"
 
-// Mandatory Access Control
-typedef enum {
-    SEC_CTX_UNCONFINED,
-    SEC_CTX_KERNEL,
-    SEC_CTX_SYSTEM,     // System daemons and servers
-    SEC_CTX_USER,       // User applications
-    SEC_CTX_SANDBOXED   // Untrusted applications
+#define MAX_SEC_CONTEXTS 64
+#define MAX_MAC_RULES 256
+
+// An in-memory representation of a security context type
+typedef struct {
+    uint32_t id;
+    char name[64];
 } security_context_t;
 
-// Action types for policy checks
-typedef enum {
-    MAC_ACTION_EXEC,
-    MAC_ACTION_FILE_WRITE,
-    MAC_ACTION_NET_BIND
-} mac_action_t;
+// An in-memory representation of a single Type Enforcement rule
+// e.g., allow user_t system_file_t : file { read execute };
+typedef struct {
+    uint32_t source_type;  // e.g., ID for "user_t"
+    uint32_t target_type;  // e.g., ID for "system_file_t"
+    uint16_t target_class; // e.g., CLASS_FILE
+    uint32_t permissions;  // Bitmask of allowed actions
+} mac_rule_t;
 
-// Check if a source context is allowed to perform an action on a target context
-bool mac_check(security_context_t source_ctx, security_context_t target_ctx, mac_action_t action);
+// --- Public MAC Functions ---
+
+// Loads the policy from a file on the root filesystem
+void mac_policy_load(const char* path);
+
+// Checks if a source context is allowed to perform an action on a target context
+bool mac_check(uint32_t source_sid, uint32_t target_sid, uint16_t target_class, uint32_t requested_perm);
+
+// Determines the security context for a new process during execve
+uint32_t mac_get_exec_transition(uint32_t old_sid, uint32_t file_sid);
 
 #endif

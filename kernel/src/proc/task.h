@@ -2,65 +2,58 @@
 #define TASK_H
 
 #include <stdint.h>
-#include <stdbool.h>
 #include "../mem/vmm.h"
-#include "../gui/events.h"
 #include "../fs/vfs.h"
-#include "../security/mac.h"
+#include "../sync/spinlock.h"
 
-#define STDIN  0
-#define STDOUT 1
-#define STDERR 2
-#define TIMESLICE_BASE 10
-#define MAX_FILES 16
+#define KERNEL_STACK_SIZE 8192
 
 typedef enum {
-    TASK_RUNNING,
-    TASK_SLEEPING,
-    TASK_ZOMBIE
-} task_state_t;
+    THREAD_RUNNING,
+    THREAD_SLEEPING,
+    THREAD_ZOMBIE
+} thread_state_t;
 
 typedef struct registers {
-    uint32_t ds;
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
-    uint32_t int_no, err_code;
-    uint32_t eip, cs, eflags, useresp, ss;
-} registers_t;
+    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
+    uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
+    uint64_t rip, cs, rflags, rsp, ss;
+} __attribute__((packed)) registers_t;
 
-typedef struct task {
-    int id;
-    uint32_t esp, ebp;
-    uint32_t eip;
-    page_directory_t* page_directory;
-    uint32_t kernel_stack;
-    event_queue_t event_queue;
+struct thread;
 
-    int64_t runtime;
-    int timeslice;
-    int priority;
-    task_state_t state;
-    int exit_code;
-    
+typedef struct wait_queue {
+    struct thread* waiting_thread;
+    struct wait_queue* next;
+} wait_queue_t;
+
+typedef struct process {
+    int pid;
+    pml4_t* pml4;
     fs_node_t* file_descriptors[MAX_FILES];
+    struct process* parent;
+} process_t;
 
-    security_context_t sec_ctx;
+typedef struct thread {
+    int tid;
+    process_t* parent_process;
+    thread_state_t state;
+    uint64_t kernel_stack;
+    registers_t regs;
+    int exit_code;
+    wait_queue_t* join_queue;
+    struct thread* next;
+} thread_t;
 
-    struct task* next;
-    struct task* parent;
-} task_t;
+void scheduler_init();
+void schedule();
+void scheduler_add_thread(thread_t* thread);
+void thread_sleep_on(wait_queue_t** queue);
+void thread_wakeup(wait_queue_t** queue);
+pid_t sys_fork(registers_t* regs);
+int sys_execve(const char* path, const char* const* argv, const char* const* envp);
+pid_t sys_waitpid(pid_t pid, int* status, int options);
 
-void init_tasking();
-void switch_task();
-void enter_user_mode(uint32_t entry_point, uint32_t stack);
-
-void push_event_to_task(task_t* task, event_t event);
-task_t* find_task_by_id(int id);
-
-int fork(void);
-int execve(const char *path, char **argv, char **envp);
-
-extern volatile task_t* current_task;
-extern volatile task_t* ready_queue;
-extern uint32_t next_pid;
+extern thread_t* current_thread;
 
 #endif
