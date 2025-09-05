@@ -21,7 +21,10 @@ SECTIONS
         *(.text.kmain64)
     }
 
-    /* Higher-half kernel virtual address space starts here. */
+    /* * Higher-half kernel virtual address space starts here. 
+     * KASLR will be handled by the bootloader, which randomizes the physical base address.
+     * The `.` symbol remains relative to the load address.
+     */
     . = 0xFFFFFFFF80000000;
     
     .rodata : ALIGN(4K)
@@ -37,5 +40,12 @@ SECTIONS
     .bss : ALIGN(4K)
     {
         *(.bss)
+    }
+
+    /* Add a section for the stack protector guard value */
+    .data.stack_guard : ALIGN(8)
+    {
+        __stack_chk_guard = .;
+        QUAD(0xDEADBEEFCAFEBABE); /* Initial guard value */
     }
 }

@@ -2,14 +2,17 @@
 #define TASK_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "../mem/vmm.h"
-#include "../gui/events.h" // Include event queue definition
+#include "../gui/events.h"
 
-// Task priority levels for the scheduler
-#define PRIORITY_HIGH   0
-#define PRIORITY_NORMAL 1
-#define PRIORITY_LOW    2
-#define NUM_PRIORITIES  3
+#define TIMESLICE_BASE 10
+
+typedef enum {
+    TASK_RUNNING,
+    TASK_SLEEPING,
+    TASK_ZOMBIE
+} task_state_t;
 
 typedef struct registers {
     uint32_t ds;
@@ -25,20 +28,29 @@ typedef struct task {
     page_directory_t* page_directory;
     uint32_t kernel_stack;
     event_queue_t event_queue;
-    
-    // Scheduler-specific fields
+
+    int64_t runtime;
+    int timeslice;
     int priority;
-    int ticks_left;
+    task_state_t state;
+    int exit_code;
 
     struct task* next;
+    struct task* parent;
 } task_t;
 
 void init_tasking();
 void switch_task();
-void enter_user_mode(uint32_t entry_point);
+void enter_user_mode(uint32_t entry_point, uint32_t stack);
+
+void push_event_to_task(task_t* task, event_t event);
+task_t* find_task_by_id(int id);
+
+int fork(void);
+int execve(const char *path, char **argv, char **envp);
 
 extern volatile task_t* current_task;
-// Queues for multi-level feedback scheduler
-extern volatile task_t* ready_queues[NUM_PRIORITIES];
+extern volatile task_t* ready_queue;
+extern uint32_t next_pid;
 
 #endif

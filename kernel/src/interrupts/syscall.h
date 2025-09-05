@@ -14,6 +14,20 @@
 #define SYS_BIND            8
 #define SYS_SENDTO          9
 #define SYS_RECVFROM        10
+#define SYS_GET_WINDOW_BUFFER 11
+#define SYS_OPEN            12
+#define SYS_CLOSE           13
+#define SYS_READ            14
+#define SYS_STAT            16
+#define SYS_FORK            17
+#define SYS_EXECVE          18
+#define SYS_WAITPID         19
+#define SYS_CONNECT         20
+#define SYS_LISTEN          21
+#define SYS_ACCEPT          22
+#define SYS_SEND            23
+#define SYS_RECV            24
+#define SYS_CREATE_WIDGET   25
 
 void init_syscalls();
 

@@ -1,66 +1,50 @@
 #include "arch/x86_64/gdt.h"
 #include "arch/x86_64/idt.h"
-#include "mem/pmm.h"
-#include "mem/vmm.h"
-#include "proc/task.h"
-#include "interrupts/timer.h"
-#include "interrupts/syscall.h"
-#include "fs/vfs.h"
-#include "drivers/ramdisk.h"
-#include "fs/infinityfs.h"
-#include "drivers/vbe.h"
-#include "drivers/mouse.h"
-#include "drivers/keyboard.h"
-#include "drivers/npu.h"
-#include "drivers/rtl8139.h"
-#include "gui/window.h"
+#include "gui/compositor.h"
 #include "proc/elf.h"
-#include "ai/nexus_core.h"
-#include "net/net.h"
-#include "net/sockets.h"
-#include "boot/multiboot.h"
 
-void keyboard_handler_c();
-void interrupt_handler_c(registers_t regs);
-window_t* create_window(int x, int y, int w, int h, char* title);
-extern uint8_t _binary_user_browser_elf_start[];
-extern uint8_t _binary_user_browser_elf_end[];
+extern uint8_t _binary_user_shell_elf_start[];
+extern uint8_t _binary_user_shell_elf_end[];
+
+extern uint8_t _binary_user_guitest_elf_start[];
+extern uint8_t _binary_user_guitest_elf_end[];
 
 void kmain(multiboot_info_t* mbd, uint32_t magic) {
     init_gdt();
     init_idt();
-    
-    // Pass the real memory map to the PMM
     pmm_init(mbd);
-    
     vmm_init();
+    crypto_init();
     init_syscalls();
     init_vfs();
     ramdisk_init(4 * 1024 * 1024);
     init_infinityfs();
     init_tasking();
     init_timer(100);
+    acpi_init();
     vbe_init(1024, 768, 32);
-    init_window_manager();
+    compositor_init(); // Use the new compositor
     init_mouse();
     init_keyboard();
-    npu_init();
-    nexus_core_init();
-    net_init();
-    sockets_init();
-    rtl8139_init();
-    
-    fs_node_t* browser_file = fs_root->create(fs_root, "browser.elf", FS_FILE);
-    uint32_t browser_size = _binary_user_browser_elf_end - _binary_user_browser_elf_start;
-    browser_file->write(browser_file, 0, browser_size, _binary_user_browser_elf_start);
+    // ... other initializations
 
-    page_directory_t* browser_dir = clone_directory(kernel_directory);
-    uint32_t entry_point = elf_load("browser.elf", browser_dir);
+    // Load the new shell application instead of the browser
+    fs_node_t* shell_file = fs_root->create(fs_root, "shell.elf", FS_FILE);
+    uint32_t shell_size = _binary_user_shell_elf_end - _binary_user_shell_elf_start;
+    shell_file->write(shell_file, 0, shell_size, _binary_user_shell_elf_start);
+
+    // Load guitest app
+    fs_node_t* guitest_file = fs_root->create(fs_root, "guitest.elf", FS_FILE);
+    uint32_t guitest_size = _binary_user_guitest_elf_end - _binary_user_guitest_elf_start;
+    guitest_file->write(guitest_file, 0, guitest_size, _binary_user_guitest_elf_start);
+
+    page_directory_t* shell_dir = clone_directory(kernel_directory);
+    uint32_t entry_point = elf_load("shell.elf", shell_dir);
 
     if (!entry_point) { while(1); }
     
     __asm__ __volatile__ ("sti");
-    switch_page_directory(browser_dir);
+    switch_page_directory(shell_dir);
     enter_user_mode(entry_point);
     
     while(1) { compositor_redraw(); }

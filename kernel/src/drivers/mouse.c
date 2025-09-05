@@ -1,4 +1,5 @@
 #include "mouse.h"
+#include "../gui/compositor.h"
 #include "../gui/window.h"
 #include <stdbool.h>
 
@@ -34,8 +35,10 @@ void mouse_handler_c() {
         case 2:
             mouse_byte[2] = inb(0x60);
             
-            // Update button state
-            mouse_left_button_down = mouse_byte[0] & 0x1;
+            bool left_down = mouse_byte[0] & 0x1;
+            bool left_press = left_down && !last_left_button_state;
+            bool left_release = !left_down && last_left_button_state;
+            last_left_button_state = left_down;
 
             // Update coordinates
             mouse_x += mouse_byte[1];
@@ -45,10 +48,8 @@ void mouse_handler_c() {
             if (mouse_x > 1024 - 10) mouse_x = 1024 - 10;
             if (mouse_y < 0) mouse_y = 0;
             if (mouse_y > 768 - 10) mouse_y = 768 - 10;
-            
-            // Pass event to window manager
-            wm_handle_mouse(mouse_x, mouse_y, mouse_left_button_down);
 
+            compositor_handle_mouse(mouse_x, mouse_y, left_press, left_release);
             mouse_cycle = 0;
             break;
     }

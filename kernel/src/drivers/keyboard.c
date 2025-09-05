@@ -1,5 +1,5 @@
 #include "keyboard.h"
-#include "../gui/window.h"
+#include "../gui/compositor.h"
 #include "../proc/task.h"
 
 // Helper function to read from an I/O port
@@ -9,7 +9,7 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
-// US QWERTY scancode map for key presses (scancodes 0x01-0x3A)
+// US QWERTY scancode map
 const char scancode_to_ascii[] = {
     '?', '?', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t',
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', '?', 'a', 's',
@@ -17,29 +17,21 @@ const char scancode_to_ascii[] = {
     'b', 'n', 'm', ',', '.', '/', '?', '?', '?', ' '
 };
 
-// Externally defined functions and variables
-extern window_t* get_active_window();
-extern task_t* find_task_by_id(int id);
-extern void push_event_to_task(task_t* task, event_t event);
-void print(char*);
-
 // The C-level keyboard interrupt handler
 void keyboard_handler_c() {
     uint8_t scancode = inb(0x60);
 
-    // We only handle key presses for now (scancodes < 0x80)
-    if (scancode < 0x80) {
+    if (scancode < 0x80) { // Key press
         char ascii = '?';
         if (scancode < sizeof(scancode_to_ascii)) {
             ascii = scancode_to_ascii[scancode];
         }
 
-        // Find the active window and its owner process
-        window_t* active_window = get_active_window();
-        if (active_window) {
-            task_t* owner = find_task_by_id(active_window->owner_pid);
+        window_t* active_win = compositor_get_active_window();
+        if (active_win && active_win->owner_pid > 0) {
+            task_t* owner = find_task_by_id(active_win->owner_pid);
             if (owner) {
-                event_t event = { .type = EVENT_KEY_PRESS, .data1 = (int32_t)ascii };
+                event_t event = { .type = EVENT_KEY_PRESS, .data1 = (int32_t)ascii, .data3 = active_win->id };
                 push_event_to_task(owner, event);
             }
         }
@@ -47,7 +39,6 @@ void keyboard_handler_c() {
 }
 
 void init_keyboard() {
-    // A full implementation would wait for the controller and send commands
-    // to enable interrupts, but for now, we just need the handler registered.
+    // A full implementation would properly configure the PS/2 controller.
     print("Keyboard driver initialized.\n");
 }
