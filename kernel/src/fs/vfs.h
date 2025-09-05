@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "../security/mac.h"
 
 #define FS_FILE        0x01
 #define FS_DIRECTORY   0x02
@@ -37,6 +38,7 @@ typedef struct fs_node {
     create_type_t create;
     mkdir_type_t mkdir;
     struct fs_node *ptr;
+    security_context_t sec_ctx;
 } fs_node_t;
 
 struct dirent {

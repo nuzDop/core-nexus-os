@@ -5,8 +5,14 @@
 #include <stdbool.h>
 #include "../mem/vmm.h"
 #include "../gui/events.h"
+#include "../fs/vfs.h"
+#include "../security/mac.h"
 
+#define STDIN  0
+#define STDOUT 1
+#define STDERR 2
 #define TIMESLICE_BASE 10
+#define MAX_FILES 16
 
 typedef enum {
     TASK_RUNNING,
@@ -34,6 +40,10 @@ typedef struct task {
     int priority;
     task_state_t state;
     int exit_code;
+    
+    fs_node_t* file_descriptors[MAX_FILES];
+
+    security_context_t sec_ctx;
 
     struct task* next;
     struct task* parent;

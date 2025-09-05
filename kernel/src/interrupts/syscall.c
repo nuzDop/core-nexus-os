@@ -1,4 +1,5 @@
 #include "syscall.h"
+#include "../drivers/cmos.h"
 #include "../fs/vfs.h"
 #include "../lib/string.h"
 #include "../gui/compositor.h"
@@ -7,7 +8,26 @@
 #include "../gui/events.h"
 #include "../ai/nexus_core.h"
 #include "../net/sockets.h"
+#include "../ipc/pipe.h"
 #include <stddef.h>
+#include "../gui/icons.h"
+
+void sys_draw_string_in_window_handler(registers_t* regs) {
+    int win_id = regs->ebx;
+    const char* text = (const char*)regs->ecx;
+    int x = regs->edx;
+    int y = regs->esi;
+    uint32_t color = regs->edi;
+    // Find window by ID, then call draw_string on its buffer
+}
+
+void sys_draw_icon_in_window_handler(registers_t* regs) {
+    int win_id = regs->ebx;
+    icon_type_t icon = (icon_type_t)regs->ecx;
+    int x = regs->edx;
+    int y = regs->esi;
+    // Find window by ID, then draw the specified icon to its buffer
+}
 
 void print(char*);
 void* memcpy(void* dest, const void* src, size_t n);
@@ -22,8 +42,34 @@ void sys_print_handler(registers_t* regs) { print((char*)regs->ebx); }
 // ... other existing handlers ...
 
 // VFS Syscalls (Placeholders for now)
+void sys_pipe_create_handler(registers_t* regs) {
+    regs->eax = create_pipe((int*)regs->ebx);
+}
+
+void sys_dup2_handler(registers_t* regs) {
+    int old_fd = regs->ebx;
+    int new_fd = regs->ecx;
+    if (old_fd >= MAX_FILES || new_fd >= MAX_FILES || !current_task->file_descriptors[old_fd]) {
+        regs->eax = -1;
+        return;
+    }
+    current_task->file_descriptors[new_fd] = current_task->file_descriptors[old_fd];
+    regs->eax = new_fd;
+}
+
 void sys_open_handler(registers_t* regs) { regs->eax = -1; }
-void sys_close_handler(registers_t* regs) { regs->eax = -1; }
+
+void sys_close_handler(registers_t* regs) {
+    int fd = regs->ebx;
+    if (fd < MAX_FILES && current_task->file_descriptors[fd]) {
+        close_fs(current_task->file_descriptors[fd]);
+        current_task->file_descriptors[fd] = NULL;
+        regs->eax = 0;
+    } else {
+        regs->eax = -1;
+    }
+}
+
 void sys_read_handler(registers_t* regs) { regs->eax = -1; }
 void sys_write_handler(registers_t* regs) {
     // Simple version for stdout/stderr
@@ -68,6 +114,13 @@ void sys_poll_event_handler(registers_t* regs) {
     regs->eax = 1; // Event was polled
 }
 
+void sys_get_system_time_handler(registers_t* regs) {
+    rtc_time_t* time_buf = (rtc_time_t*)regs->ebx;
+    if (time_buf) {
+        get_rtc_time(time_buf);
+    }
+}
+
 void init_syscalls() {
     // ...
     syscall_handlers[SYS_CONNECT] = &sys_connect_handler;
@@ -86,6 +139,14 @@ void init_syscalls() {
     syscall_handlers[SYS_FORK] = &sys_fork_handler;
     syscall_handlers[SYS_EXECVE] = &sys_execve_handler;
     syscall_handlers[SYS_WAITPID] = &sys_waitpid_handler;
+    // ...
+    syscall_handlers[SYS_GET_SYSTEM_TIME] = &sys_get_system_time_handler;
+    // ...
+    syscall_handlers[SYS_PIPE_CREATE] = &sys_pipe_create_handler;
+    syscall_handlers[SYS_DUP2] = &sys_dup2_handler;
+    // ...
+    syscall_handlers[SYS_DRAW_STRING_IN_WINDOW] = &sys_draw_string_in_window_handler;
+    syscall_handlers[SYS_DRAW_ICON_IN_WINDOW] = &sys_draw_icon_in_window_handler;
 }
 
 void sys_create_widget_handler(registers_t* regs) {
@@ -96,8 +157,24 @@ void sys_create_widget_handler(registers_t* regs) {
     regs->eax = widget->id;
 }
 
+void sys_readdir_handler(registers_t* regs) {
+    fs_node_t* node = finddir_fs(fs_root, (char*)regs->ebx);
+    if (node) {
+        struct dirent* de = readdir_fs(node, regs->ecx);
+        if (de) {
+            memcpy((void*)regs->edx, de, sizeof(struct dirent));
+            regs->eax = 1;
+        } else {
+            regs->eax = 0;
+        }
+    } else {
+        regs->eax = 0;
+    }
+}
 
 void init_syscalls() {
     // ...
     syscall_handlers[SYS_CREATE_WIDGET] = &sys_create_widget_handler;
+
+    syscall_handlers[SYS_READDIR] = &sys_readdir_handler;
 }

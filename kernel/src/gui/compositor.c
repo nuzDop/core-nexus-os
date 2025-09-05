@@ -2,6 +2,7 @@
 #include "../drivers/vbe.h"
 #include "../mem/pmm.h"
 #include "font.h"
+#include "theme.h"
 #include "../lib/string.h"
 #include "../proc/task.h"
 
@@ -55,14 +56,22 @@ static void draw_rect(int x, int y, int w, int h, uint32_t color, uint32_t* buff
 
 void compositor_redraw(void) {
     // 1. Draw desktop background
-    draw_rect(0, 0, screen_w, screen_h, 0x101520, back_buffer, screen_w);
+    draw_rect(0, 0, screen_w, screen_h, COLOR_BACKGROUND, back_buffer, screen_w);
 
     // 2. Draw windows from bottom to top
     for (int i = 0; i < window_count; i++) {
         int win_index = z_order[i];
         if (win_index != -1 && window_list[win_index]) {
             window_t* win = window_list[win_index];
-            // Copy window's buffer to back buffer
+
+            uint32_t border_color = win->is_active ? COLOR_WINDOW_BORDER_ACTIVE : COLOR_WINDOW_BORDER_INACTIVE;
+            
+            // Draw title bar (no separate border, just a solid bar)
+            draw_rect(win->x, win->y - TITLEBAR_HEIGHT, win->width, TITLEBAR_HEIGHT, COLOR_WINDOW_TITLEBAR, back_buffer, screen_w);
+            draw_string(win->title, win->x + 8, win->y - 18, COLOR_WINDOW_TITLE_TEXT, back_buffer, screen_w);
+            
+            // Draw window body background and copy contents
+            draw_rect(win->x, win->y, win->width, win->height, COLOR_WINDOW_BODY, back_buffer, screen_w);
             for (int row = 0; row < win->height; row++) {
                 memcpy(&back_buffer[(win->y + row) * screen_w + win->x], &win->buffer[row * win->width], win->width * 4);
             }
@@ -70,15 +79,13 @@ void compositor_redraw(void) {
     }
 
     // 3. Draw mouse cursor
-    draw_rect(mouse_x, mouse_y, 3, 3, 0xFFFFFF, back_buffer, screen_w);
-    draw_rect(mouse_x, mouse_y, 10, 1, 0xFFFFFF, back_buffer, screen_w);
-    draw_rect(mouse_x, mouse_y, 1, 10, 0xFFFFFF, back_buffer, screen_w);
+    draw_rect(mouse_x, mouse_y, 1, 15, COLOR_FOREGROUND, back_buffer, screen_w);
+    draw_rect(mouse_x, mouse_y, 8, 1, COLOR_FOREGROUND, back_buffer, screen_w);
 
 
-    // 4. Swap buffers (copy back buffer to framebuffer)
+    // 4. Swap buffers
     memcpy(vbe_get_framebuffer(), back_buffer, screen_w * screen_h * 4);
 }
-
 // Other functions from old window.c refactored for the compositor...
 // (wm_handle_mouse, wm_draw_rect_in_window, create_window etc. go here)
 

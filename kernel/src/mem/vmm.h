@@ -15,7 +15,8 @@ typedef struct page_table_entry {
     uint32_t user       : 1;
     uint32_t accessed   : 1;
     uint32_t dirty      : 1;
-    uint32_t unused     : 7;
+    uint32_t unused     : 6;
+    uint32_t available  : 1; // for kernel use
     uint32_t frame      : 20;
 } __attribute__((packed)) page_table_entry_t;
 

@@ -12,6 +12,7 @@ typedef enum {
     EVENT_KEY_PRESS,
     EVENT_WINDOW_CLOSE,
     EVENT_BUTTON_CLICK
+    EVENT_SYSTEM_ALERT // for AI and sys notifs
 } event_type_t;
 
 // Structure for a generic UI event

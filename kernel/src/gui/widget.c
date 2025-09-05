@@ -22,19 +22,18 @@ widget_t* create_widget(widget_type_t type, window_t* parent, int x, int y, int 
 }
 
 void draw_widget(widget_t* widget) {
-    if (!widget || !widget->needs_redraw) return;
+    if (!widget || !widget->parent) return;
 
     if (widget->type == WIDGET_BUTTON) {
-        // Draw button background and border
-        draw_rect(widget->x, widget->y, widget->width, widget->height, 0x555555, widget->parent->buffer, widget->parent->width);
-        draw_rect(widget->x + 1, widget->y + 1, widget->width - 2, widget->height - 2, 0x777777, widget->parent->buffer, widget->parent->width);
+        // Draw button with theme colors
+        draw_rect(widget->x, widget->y, widget->width, widget->height, COLOR_BUTTON_BG, widget->parent->buffer, widget->parent->width);
         
         // Draw text centered
         int text_len = strlen(widget->text);
         int text_x = widget->x + (widget->width - text_len * 8) / 2;
         int text_y = widget->y + (widget->height - 8) / 2;
-        draw_string(widget->text, text_x, text_y, 0xFFFFFF, widget->parent->buffer, widget->parent->width);
+        draw_string(widget->text, text_x, text_y, COLOR_BUTTON_FG, widget->parent->buffer, widget->parent->width);
     }
-
+    
     widget->needs_redraw = false;
 }

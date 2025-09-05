@@ -28,6 +28,13 @@
 #define SYS_SEND            23
 #define SYS_RECV            24
 #define SYS_CREATE_WIDGET   25
+#define SYS_GET_SYSTEM_TIME 26
+#define SYS_READDIR         27
+#define SYS_PIPE_CREATE     28
+#define SYS_DUP2            29
+#define SYS_DRAW_STRING_IN_WINDOW 30
+#define SYS_DRAW_ICON_IN_WINDOW   31
+#define SYS_CLOSE           13
 
 void init_syscalls();
 
