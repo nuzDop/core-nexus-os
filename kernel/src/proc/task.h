@@ -5,6 +5,12 @@
 #include "../mem/vmm.h"
 #include "../gui/events.h" // Include event queue definition
 
+// Task priority levels for the scheduler
+#define PRIORITY_HIGH   0
+#define PRIORITY_NORMAL 1
+#define PRIORITY_LOW    2
+#define NUM_PRIORITIES  3
+
 typedef struct registers {
     uint32_t ds;
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
@@ -18,7 +24,12 @@ typedef struct task {
     uint32_t eip;
     page_directory_t* page_directory;
     uint32_t kernel_stack;
-    event_queue_t event_queue; // Each task gets an event queue
+    event_queue_t event_queue;
+    
+    // Scheduler-specific fields
+    int priority;
+    int ticks_left;
+
     struct task* next;
 } task_t;
 
@@ -27,6 +38,7 @@ void switch_task();
 void enter_user_mode(uint32_t entry_point);
 
 extern volatile task_t* current_task;
-extern volatile task_t* ready_queue;
+// Queues for multi-level feedback scheduler
+extern volatile task_t* ready_queues[NUM_PRIORITIES];
 
 #endif
