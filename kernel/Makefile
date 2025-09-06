@@ -1,79 +1,39 @@
-#
-# Makefile for the LimitlessOS PolyCore Kernel (x86_64)
-#
+CC = gcc
+AS = nasm
+LD = ld
 
-# --- Toolchain Definition ---
-PREFIX = /usr/local/x86_64-elf-gcc/bin/
-TARGET = x86_64-elf-
-CC = $(PREFIX)$(TARGET)gcc
-CXX = $(PREFIX)$(TARGET)g++
-LD = $(PREFIX)$(TARGET)ld
-OBJCOPY = $(PREFIX)$(TARGET)objcopy
-NASM = nasm
+CFLAGS = -Wall -Wextra -std=c11 -ffreestanding -fno-stack-protector -fno-stack-check -fno-lto -fPIE -m64 -march=x86-64 -I./src -I./src/include
+ASFLAGS = -f elf64
+LDFLAGS = -T linker.ld -nostdlib -z max-page-size=0x1000
 
-# --- Compiler and Linker Flags ---
-# -I src is the key fix: It adds the 'src' directory to the include path.
-# -mcmodel=kernel, -mno-red-zone are standard for 64-bit kernel development.
-CFLAGS = -std=gnu11 -ffreestanding -O2 -Wall -Wextra -c -I./ -I src/ \
-         -mcmodel=kernel -mno-red-zone -fno-stack-protector
+SRCDIR = src
+OBJDIR = obj
 
-CXXFLAGS = $(CFLAGS) -fno-use-cxa-atexit -nostdlib -fno-builtin -fno-rtti -fno-exceptions
+# Find all C and assembly files in the source directory and subdirectories
+SOURCES_C := $(shell find $(SRCDIR) -name '*.c')
+SOURCES_ASM := $(shell find $(SRCDIR) -name '*.asm')
 
-NASMFLAGS = -f elf64
+# Generate object file paths by replacing src/ with obj/ and .c/.asm with .o
+OBJECTS_C := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCES_C))
+OBJECTS_ASM := $(patsubst $(SRCDIR)/%.asm, $(OBJDIR)/%.o, $(SOURCES_ASM))
 
-LDFLAGS = -T linker.ld -nostdlib --oformat=elf64-x86-64
+OBJECTS = $(OBJECTS_C) $(OBJECTS_ASM)
 
-# --- Source Files ---
-ASM_SOURCES = $(shell find arch/ -name "*.asm")
-C_SOURCES = $(shell find src/ -name "*.c") $(shell find arch/ -name "*.c")
-CPP_SOURCES = $(shell find src/ -name "*.cpp")
-
-# --- User Programs to Embed ---
-USER_PROGRAMS = ../user/shell/shell.elf \
-                ../user/terminal/terminal.elf \
-                ../user/file_manager/file_manager.elf \
-                ../user/installer/installer.elf \
-                ../user/sh/sh.elf \
-                ../user/mkfs/mkfs.elf \
-                ../user/security_center/security_center.elf
-
-# --- Object File Generation ---
-ASM_OBJECTS = $(patsubst %.asm, %.o, $(ASM_SOURCES))
-C_OBJECTS = $(patsubst %.c, %.o, $(C_SOURCES))
-CPP_OBJECTS = $(patsubst %.cpp, %.o, $(CPP_SOURCES))
-USER_OBJECTS = $(patsubst %.elf, %.o, $(USER_PROGRAMS))
-
-
-# --- Main Build Target ---
-all: kernel.bin
-
-kernel.bin: $(ASM_OBJECTS) $(C_OBJECTS) $(CPP_OBJECTS) $(USER_OBJECTS)
-	@echo "  LD kernel.bin"
-	@$(LD) $(LDFLAGS) -o kernel.bin $^
-	@echo "Kernel built successfully as kernel.bin"
-
-# --- Rule to Embed User Programs ---
-$(USER_OBJECTS): %.o: %.elf
-	@echo "  OBJCOPY $<"
-	@$(OBJCOPY) -I elf64-x86-64 -O binary $< $@
-
-# --- Compilation and Assembly Rules ---
-%.o: %.asm
-	@echo "  NASM $<"
-	@$(NASM) $(NASMFLAGS) $< -o $@
-
-%.o: %.c
-	@echo "  CC $<"
-	@$(CC) $(CFLAGS) $< -o $@
-
-%.o: %.cpp
-	@echo "  CXX $<"
-	@$(CXX) $(CXXFLAGS) $< -o $@
-
-
-# --- Housekeeping ---
 .PHONY: all clean
 
+all: kernel.bin
+
+kernel.bin: $(OBJECTS)
+	@mkdir -p bin
+	$(LD) $(LDFLAGS) -o bin/kernel.bin $(OBJECTS)
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.asm
+	@mkdir -p $(@D)
+	$(AS) $(ASFLAGS) $< -o $@
+
 clean:
-	@rm -f kernel.bin $(ASM_OBJECTS) $(C_OBJECTS) $(CPP_OBJECTS) $(USER_OBJECTS)
-	@echo "Cleaned all kernel build artifacts."
+	@rm -rf $(OBJDIR) bin

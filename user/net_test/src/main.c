@@ -1,46 +1,51 @@
-#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
-#define SYS_PRINT           1
-#define SYS_SOCKET          7
-#define SYS_CONNECT         20
-#define SYS_SEND            23
-#define SYS_RECV            24
+#define SERVER_IP "10.0.2.2"
+#define SERVER_PORT 8080
+#define MESSAGE "Hello from client"
 
-#define AF_INET 2
-#define SOCK_STREAM 1
+int main() {
+    int sock;
+    struct sockaddr_in server;
+    char buffer[1024] = {0};
 
-typedef struct {
-    uint16_t sin_family;
-    uint16_t sin_port;
-    uint32_t sin_addr;
-} sockaddr_in_t;
-
-int syscall(int num, int p1, int p2, int p3, int p4, int p5);
-uint16_t htons(uint16_t val) { return (val >> 8) | (val << 8); }
-int strlen(const char* str) { int len = 0; while(str[len]) len++; return len; }
-
-void _start() {
-    syscall(SYS_PRINT, (int)"Net Test: Attempting TCP connection...\n", 0,0,0,0);
-    int sock = syscall(SYS_SOCKET, AF_INET, SOCK_STREAM, 0, 0, 0);
-
-    sockaddr_in_t dest_addr;
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = htons(80);
-    dest_addr.sin_addr = (93 << 24) | (184 << 16) | (216 << 8) | 34;
-    
-    if (syscall(SYS_CONNECT, sock, (int)&dest_addr, sizeof(dest_addr), 0, 0) < 0) {
-        syscall(SYS_PRINT, (int)"Connection failed.\n", 0,0,0,0);
-        while(1);
+    // Create socket
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("Socket creation failed");
+        return 1;
     }
-    
-    const char* request = "GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n";
-    syscall(SYS_SEND, sock, (int)request, strlen(request), 0, 0);
 
-    char buffer[2048];
-    int bytes_received = syscall(SYS_RECV, sock, (int)buffer, 2047, 0, 0);
-    if (bytes_received > 0) {
-        buffer[bytes_received] = '\0';
-        syscall(SYS_PRINT, (int)buffer, 0,0,0,0);
+    server.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(SERVER_PORT);
+
+    // Connect to server
+    if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
+        perror("Connection failed");
+        return 1;
     }
-    while(1);
+
+    // Send message to server
+    if (send(sock, MESSAGE, strlen(MESSAGE), 0) < 0) {
+        perror("Send failed");
+        return 1;
+    }
+
+    printf("Message sent to server\n");
+
+    // Receive response from server
+    if (read(sock, buffer, 1024) < 0) {
+        perror("Read failed");
+        return 1;
+    }
+
+    printf("Server response: %s\n", buffer);
+
+    close(sock);
+
+    return 0;
 }

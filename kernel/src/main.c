@@ -1,78 +1,69 @@
-#include "arch/x86_64/gdt.h"
-#include "arch/x86_64/idt.h"
-#include "gui/compositor.h"
-#include "proc/elf.h"
-#include "drivers/cmos.h"
-#include "fs/limitlessfs.h"
-#include "proc/elf.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <limine.h>
+#include <arch/x86_64/gdt.h>
+#include <arch/x86_64/idt.h>
+#include <mem/pmm.h>
+#include <mem/vmm.h>
+#include <acpi/acpi.h>
+#include <drivers/pci.h>
+#include <proc/task.h>
+#include <gui/compositor.h>
+#include <lib/print.h>
 
-extern uint8_t _binary_user_mkfs_elf_start[];
-extern uint8_t _binary_user_mkfs_elf_end[];
+// Set the base revision to 1, this is recommended as this is the latest
+// base revision described by the Limine boot protocol specification.
+// See specification for further info.
 
-extern uint8_t _binary_user_shell_elf_start[];
-extern uint8_t _binary_user_shell_elf_end[];
+static volatile LIMINE_BASE_REVISION(1);
 
-extern uint8_t _binary_user_guitest_elf_start[];
-extern uint8_t _binary_user_guitest_elf_end[];
+// The Limine requests can be placed anywhere, but it is important that
+// the compiler does not optimise them away, so, usually, they should
+// be made volatile or equivalent.
 
-void kmain(multiboot_info_t* mbd, uint32_t magic) {
-    init_gdt();
-    init_idt();
-    pmm_init(mbd);
+static volatile struct limine_framebuffer_request framebuffer_request = {
+    .id = LIMINE_FRAMEBUFFER_REQUEST,
+    .revision = 0
+};
+
+// Halt and catch fire function.
+static void hcf(void) {
+    asm ("cli");
+    for (;;) {
+        asm ("hlt");
+    }
+}
+
+// The following will be our kernel's entry point.
+// If renaming _start() to something else, make sure to change the
+// linker script accordingly.
+void _start(void) {
+    // Ensure we got a framebuffer.
+    if (framebuffer_request.response == NULL
+     || framebuffer_request.response->framebuffer_count < 1) {
+        hcf();
+    }
+
+    // Fetch the first framebuffer.
+    struct limine_framebuffer *framebuffer = framebuffer_request.response->framebuffers[0];
+
+    // Note: we assume the framebuffer model is RGB with 32-bit pixels.
+    for (size_t i = 0; i < 100; i++) {
+        uint32_t *fb_ptr = framebuffer->address;
+        fb_ptr[i * (framebuffer->pitch / 4) + i] = 0xffffff;
+    }
+    
+    gdt_init();
+    idt_init();
+    pmm_init();
     vmm_init();
-    crypto_init();
-    init_syscalls();
-    init_vfs();
-    ramdisk_init(4 * 1024 * 1024);
-    init_infinityfs();
-    init_tasking();
-    init_timer(100);
     acpi_init();
-    vbe_init(1024, 768, 32);
-    compositor_init(); // Use the new compositor
-    init_mouse();
-    init_keyboard();
-    vfs_init();
-    ramdisk_init(16 * 1024 * 1024); // 17 MB ramdisk
-    // ... other initializations
-
-    // Load the new shell application instead of the browser
-    fs_node_t* shell_file = fs_root->create(fs_root, "shell.elf", FS_FILE);
-    uint32_t shell_size = _binary_user_shell_elf_end - _binary_user_shell_elf_start;
-    shell_file->write(shell_file, 0, shell_size, _binary_user_shell_elf_start);
-
-    // Load guitest app
-    fs_node_t* guitest_file = fs_root->create(fs_root, "guitest.elf", FS_FILE);
-    uint32_t guitest_size = _binary_user_guitest_elf_end - _binary_user_guitest_elf_start;
-    guitest_file->write(guitest_file, 0, guitest_size, _binary_user_guitest_elf_start);
-
-    page_directory_t* shell_dir = clone_directory(kernel_directory);
-    uint32_t entry_point = elf_load("shell.elf", shell_dir);
-
-    if (!entry_point) { while(1); }
+    pci_init();
+    task_init();
+    compositor_init();
     
-    __asm__ __volatile__ ("sti");
-    switch_page_directory(shell_dir);
-    enter_user_mode(entry_point);
-    
-// 1. Create a VFS node for the ramdisk device itself
-    fs_node_t* ramdisk_dev = finddir_fs(fs_root, "ramdisk");
+    kprintf("Hello, world!\n");
 
-    // 2. Temporarily load and run mkfs to format the ramdisk
-    // A real OS would have a more elegant way to do this.
-    page_directory_t* mkfs_dir = clone_directory(kernel_directory);
-    uint32_t entry = elf_load_from_memory(_binary_user_mkfs_elf_start, _binary_user_mkfs_elf_end - _binary_user_mkfs_elf_start, mkfs_dir);
-    // ... fork and run this process, wait for it to exit ...
-    
-    // 3. Mount the newly formatted ramdisk as the root filesystem
-    fs_node_t* lfs_root = mount_limitlessfs(ramdisk_dev);
-    fs_root = lfs_root; // Replace the initial VFS root with our real filesystem
-
-    // 4. Now, copy user programs into the new filesystem
-    // ... (create_fs("/bin/shell"), write_fs(...), etc.) ...
-    
-    // 5. Launch the main desktop shell from the new filesystem
-    // ... (fork and exec "/bin/shell") ...
-
-    while(1) { compositor_redraw(); }
+    hcf();
 }
