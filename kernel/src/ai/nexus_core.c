@@ -1,13 +1,11 @@
-#include "nexus_core.h"
-#include "../lib/string.h"
-#include "../interrupts/syscall.h" // Include for syscall numbers
-
-// Forward declare print for now. A proper kernel would have a dedicated debug header.
-void print(const char* str);
+#include "ai/nexus_core.h"
+#include "lib/string.h"
+#include "interrupts/syscall.h"
+#include "lib/print.h"
 
 // A very simple state model for a process
 typedef struct {
-    int pid;
+    pid_t pid;
     bool has_used_net;
     bool has_written_file;
 } process_model_t;

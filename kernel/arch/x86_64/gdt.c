@@ -1,11 +1,14 @@
-#include "gdt.h"
-#include "../../lib/string.h"
+#include "arch/x86_64/gdt.h"
+#include "lib/string.h" // Corrected include path
 
-// Define the GDT entries
+// Define the GDT entries and pointer
 static gdt_entry_t gdt_entries[5];
 static gdt_ptr_t   gdt_ptr;
 
-// Function to set a GDT entry
+// External assembly function to load the GDT register
+extern void gdt_flush(uint64_t);
+
+// Setup a GDT descriptor
 static void gdt_set_gate(int32_t num, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran) {
     gdt_entries[num].base_low    = (base & 0xFFFF);
     gdt_entries[num].base_middle = (base >> 16) & 0xFF;
@@ -18,19 +21,17 @@ static void gdt_set_gate(int32_t num, uint32_t base, uint32_t limit, uint8_t acc
     gdt_entries[num].access      = access;
 }
 
-// Initialize the GDT
+// Initialize the Global Descriptor Table
 void init_gdt() {
     gdt_ptr.limit = (sizeof(gdt_entry_t) * 5) - 1;
-    // Pointers are now 64-bit. Cast to uint64_t.
+    // Use uint64_t for 64-bit addresses
     gdt_ptr.base  = (uint64_t)&gdt_entries;
 
     gdt_set_gate(0, 0, 0, 0, 0);                // Null segment
-    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF); // Kernel Code Segment
-    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF); // Kernel Data Segment
-    gdt_set_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xCF); // User Code Segment
-    gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF); // User Data Segment
+    gdt_set_gate(1, 0, 0, 0x9A, 0x20);          // Kernel Code Segment (64-bit)
+    gdt_set_gate(2, 0, 0, 0x92, 0x00);          // Kernel Data Segment
+    gdt_set_gate(3, 0, 0, 0xFA, 0x20);          // User Code Segment
+    gdt_set_gate(4, 0, 0, 0xF2, 0x00);          // User Data Segment
 
-    // Load the GDT
-    // The assembly function now expects a 64-bit pointer.
     gdt_flush((uint64_t)&gdt_ptr);
 }
