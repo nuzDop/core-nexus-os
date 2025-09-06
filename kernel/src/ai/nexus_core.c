@@ -1,6 +1,9 @@
 #include "nexus_core.h"
-#include "../proc/task.h"
 #include "../lib/string.h"
+#include "../interrupts/syscall.h" // Include for syscall numbers
+
+// Forward declare print for now. A proper kernel would have a dedicated debug header.
+void print(const char* str);
 
 // A very simple state model for a process
 typedef struct {
@@ -19,18 +22,18 @@ void nexus_core_init() {
 }
 
 void nexus_core_analyze_syscall(registers_t* regs) {
-    if (!current_task) return;
+    if (!current_thread) return;
 
     // Find model for current PID
     process_model_t* model = NULL;
     for(int i = 0; i < model_count; i++) {
-        if (models[i].pid == current_task->id) {
+        if (models[i].pid == current_thread->parent_process->pid) {
             model = &models[i];
             break;
         }
     }
     if (!model && model_count < MAX_MODELS) {
-        models[model_count].pid = current_task->id;
+        models[model_count].pid = current_thread->parent_process->pid;
         models[model_count].has_used_net = false;
         models[model_count].has_written_file = false;
         model = &models[model_count];
@@ -39,20 +42,18 @@ void nexus_core_analyze_syscall(registers_t* regs) {
 
     if (!model) return;
 
-    // Simple Anomaly Detection Rule: If a process that has never used the network
-    // suddenly tries to write to a file, flag it as suspicious.
-    if (model->has_used_net && regs->eax == SYS_WRITE) {
+    // Use rax for 64-bit syscall number
+    if (model->has_used_net && regs->rax == SYS_WRITE) {
         if (!model->has_written_file) {
-            print("NEXUS CORE ALERT: Process PID %d wrote to file after network activity. Potential exfiltration attempt.\n");
-            // In a real system, this would send an EVENT_SYSTEM_ALERT
+            print("NEXUS CORE ALERT: Process PID wrote to file after network activity.\n");
         }
     }
     
     // Update model state
-    if (regs->eax >= SYS_SOCKET && regs->eax <= SYS_RECV) {
+    if (regs->rax >= SYS_SOCKET && regs->rax <= SYS_RECV) {
         model->has_used_net = true;
     }
-    if (regs->eax == SYS_WRITE) {
+    if (regs->rax == SYS_WRITE) {
         model->has_written_file = true;
     }
 }

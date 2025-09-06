@@ -1,38 +1,44 @@
 #include "idt.h"
+#include "../../lib/string.h"
 
-idt_entry_t idt_entries[256];
-idt_ptr_t   idt_ptr;
+// Define the IDT and IDT pointer
+static idt_entry_t idt_entries[256];
+static idt_ptr_t   idt_ptr;
 
+// External ISR/IRQ stubs from interrupts.asm
 extern void isr0();
-extern void irq0(); // Timer
-extern void irq1(); // Keyboard
-extern void irq12(); // Mouse
+extern void irq0();
+extern void irq1();
+extern void irq12();
 extern void isr128();
 
-extern void idt_flush(uint32_t);
 
-static void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
+// Set an IDT entry
+static void idt_set_gate(uint8_t num, uint64_t base, uint16_t sel, uint8_t flags) {
     idt_entries[num].base_lo = base & 0xFFFF;
-    idt_entries[num].base_hi = (base >> 16) & 0xFFFF;
+    idt_entries[num].base_mid = (base >> 16) & 0xFFFF;
+    idt_entries[num].base_hi = (base >> 32) & 0xFFFFFFFF;
+
     idt_entries[num].sel     = sel;
     idt_entries[num].always0 = 0;
-    idt_entries[num].flags   = flags | 0x60;
+    idt_entries[num].flags   = flags;
 }
 
+// Initialize the IDT
 void init_idt() {
     idt_ptr.limit = sizeof(idt_entry_t) * 256 - 1;
-    idt_ptr.base  = (uint32_t)&idt_entries;
+    // Pointers are now 64-bit.
+    idt_ptr.base  = (uint64_t)&idt_entries;
 
-    unsigned char* idt_ptr_byte = (unsigned char*)&idt_entries;
-    for(int i=0; i < sizeof(idt_entry_t) * 256; i++) {
-        idt_ptr_byte[i] = 0;
-    }
+    memset(&idt_entries, 0, sizeof(idt_entry_t) * 256);
 
-    idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E);
-    idt_set_gate(32, (uint32_t)irq0, 0x08, 0x8E);   // IRQ0: Timer
-    idt_set_gate(33, (uint32_t)irq1, 0x08, 0x8E);  // IRQ1: PS/2 Keyboard
-    idt_set_gate(44, (uint32_t)irq12, 0x08, 0x8E);  // IRQ12: PS/2 Mouse
-    idt_set_gate(128, (uint32_t)isr128, 0x08, 0xEE);
+    // Set up ISRs and IRQs. The base address must be a 64-bit integer.
+    idt_set_gate(0, (uint64_t)isr0, 0x08, 0x8E);
+    idt_set_gate(32, (uint64_t)irq0, 0x08, 0x8E);    // IRQ0: Timer
+    idt_set_gate(33, (uint64_t)irq1, 0x08, 0x8E);   // IRQ1: PS/2 Keyboard
+    idt_set_gate(44, (uint64_t)irq12, 0x08, 0x8E);  // IRQ12: PS/2 Mouse
+    idt_set_gate(128, (uint64_t)isr128, 0x08, 0xEE); // Syscall vector
 
-    idt_flush((uint32_t)&idt_ptr);
+    // Load the IDT
+    idt_flush((uint64_t)&idt_ptr);
 }

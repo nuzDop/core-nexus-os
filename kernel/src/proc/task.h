@@ -2,9 +2,14 @@
 #define TASK_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "../mem/vmm.h"
 #include "../fs/vfs.h"
 #include "../sync/spinlock.h"
+
+// Define standard types that were missing
+typedef int pid_t;
+#define MAX_FILES 16
 
 #define KERNEL_STACK_SIZE 8192
 
@@ -28,7 +33,7 @@ typedef struct wait_queue {
 } wait_queue_t;
 
 typedef struct process {
-    int pid;
+    pid_t pid;
     pml4_t* pml4;
     fs_node_t* file_descriptors[MAX_FILES];
     struct process* parent;
@@ -54,6 +59,7 @@ pid_t sys_fork(registers_t* regs);
 int sys_execve(const char* path, const char* const* argv, const char* const* envp);
 pid_t sys_waitpid(pid_t pid, int* status, int options);
 
+// Make the current thread globally accessible
 extern thread_t* current_thread;
 
 #endif
